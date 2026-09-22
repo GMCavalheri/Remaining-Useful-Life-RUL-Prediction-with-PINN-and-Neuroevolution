@@ -1,0 +1,10 @@
+defaults: base.yaml
+
+# A deliberately tiny search: fast enough to run as a smoke test / demo
+# (see the plan's verification section). A real search would use a larger
+# population, more generations, and a bigger fitness_epochs budget.
+evolution:
+  population_size: 4
+  n_generations: 2
+  fitness_epochs: 5
+  mutation_rate: 0.2

@@ -28,3 +28,19 @@ def test_scaler_applies_train_statistics_to_other_splits():
     # Uses TRAIN mean/std, not val's own — val's own mean would give 0 here.
     expected_channel0 = (2.0 - 1.0) / (0.0 + scaler.eps)
     assert np.isclose(X_val_scaled[0, 0, 0], expected_channel0, rtol=1e-3)
+
+
+def test_scaler_fit_on_empty_array_does_not_produce_nan():
+    """A genome's window_length (Phase 5) can exceed every unit's cycle
+    count, leaving zero training windows. Fitting must not silently poison
+    everything downstream with NaN (see rul.data.scaling.WindowScaler.fit)."""
+    X_train = np.empty((0, 10, 4), dtype=np.float32)
+    scaler = WindowScaler.fit(X_train)
+
+    assert not np.any(np.isnan(scaler.mean))
+    assert not np.any(np.isnan(scaler.std))
+    assert scaler.mean.shape == (4,)
+
+    X_val = np.random.default_rng(0).normal(size=(3, 10, 4)).astype(np.float32)
+    X_val_scaled = scaler.transform(X_val)
+    assert not np.any(np.isnan(X_val_scaled))

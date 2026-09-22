@@ -1,0 +1,22 @@
+defaults: base.yaml
+
+# The best individual found by scripts/evolve.py (configs/evolve.yaml),
+# generation 3, val RMSE 6.258 at the search's 15-epoch fitness budget.
+# Retrained here with the full training budget (configs/base.yaml's
+# training.epochs=100) as a sanity check, not a final multi-seed result
+# (that's Milestone 6's job).
+data:
+  window_length: 50
+
+training:
+  lr: 0.00912
+
+model:
+  type: pinn
+  encoder: gru
+  hidden_size: 16
+  num_layers: 2
+  embedding_dim: 64
+  dropout: 0.227
+  lambda_mono: 1.610
+  lambda_health: 0.0092
