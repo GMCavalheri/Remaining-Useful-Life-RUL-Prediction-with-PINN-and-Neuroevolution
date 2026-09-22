@@ -1,0 +1,25 @@
+# Base configuration shared by every experiment config.
+# Specific configs inherit from this with:
+#   defaults: base.yaml
+# and override only what differs.
+
+seed: 42
+deterministic: true
+
+data:
+  dataset: n-cmapss
+  subset: DS02          # which N-CMAPSS file (DS01..DS08)
+  raw_dir: data/raw
+  processed_dir: data/processed
+  downsample_factor: 10  # keep every Nth row of the 1 Hz stream
+  window_length: 50      # cycles per input window
+  val_fraction: 0.15     # fraction of *units* (not rows) held out for validation
+  test_fraction: 0.15    # fraction of *units* held out for test
+
+training:
+  batch_size: 256
+  epochs: 100
+  lr: 0.001
+  early_stopping_patience: 10
+
+output_dir: results
