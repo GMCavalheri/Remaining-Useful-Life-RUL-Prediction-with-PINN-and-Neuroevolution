@@ -1,22 +1,27 @@
 defaults: base.yaml
 
-# The best individual found by scripts/evolve.py (configs/evolve.yaml),
-# generation 3, val RMSE 6.258 at the search's 15-epoch fitness budget.
-# Retrained here with the full training budget (configs/base.yaml's
-# training.epochs=100) as a sanity check, not a final multi-seed result
-# (that's Milestone 6's job).
+# The best individual found by scripts/evolve.py (configs/evolve.yaml,
+# population 16, 6 generations, 20-epoch fitness budget): val RMSE 3.838
+# at the search's fitness budget. Retrained here with the full training
+# budget (configs/base.yaml's training.epochs=100) as a sanity check, not
+# a final multi-seed result (that's Milestone 6's job).
+#
+# Notable: evolution independently converged on a CNN encoder with a
+# near-zero lambda_health (0.00075) -- the same conclusion Phase 4's manual
+# ablation reached by hand (CNN was the best baseline architecture; the
+# health-consistency loss hurt on this small split).
 data:
   window_length: 50
 
 training:
-  lr: 0.00912
+  lr: 0.00441
 
 model:
   type: pinn
-  encoder: gru
-  hidden_size: 16
-  num_layers: 2
-  embedding_dim: 64
+  encoder: cnn
+  channels: [64]
+  kernel_size: 7
+  embedding_dim: 32
   dropout: 0.227
-  lambda_mono: 1.610
-  lambda_health: 0.0092
+  lambda_mono: 0.709
+  lambda_health: 0.00075

@@ -1,7 +1,7 @@
 defaults: base.yaml
 
 evolution:
-  population_size: 8
-  n_generations: 4
-  fitness_epochs: 15
+  population_size: 16
+  n_generations: 6
+  fitness_epochs: 20
   mutation_rate: 0.2
