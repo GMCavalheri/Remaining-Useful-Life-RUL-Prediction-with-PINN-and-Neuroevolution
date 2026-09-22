@@ -1,0 +1,9 @@
+defaults: pinn_full.yaml
+
+# Ablation: both physics terms off. Architecturally identical to pinn_full
+# (same encoder + unused health head), trained with plain MSE only -- the
+# fairest possible "no physics" comparison point (isolates the loss terms'
+# effect from any architecture difference).
+model:
+  lambda_mono: 0.0
+  lambda_health: 0.0

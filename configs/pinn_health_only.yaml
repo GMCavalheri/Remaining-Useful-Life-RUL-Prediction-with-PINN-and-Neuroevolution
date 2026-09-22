@@ -1,0 +1,5 @@
+defaults: pinn_full.yaml
+
+# Ablation: health-consistency loss only.
+model:
+  lambda_mono: 0.0

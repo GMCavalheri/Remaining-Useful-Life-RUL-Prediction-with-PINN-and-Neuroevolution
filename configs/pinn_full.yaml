@@ -1,0 +1,23 @@
+defaults: base.yaml
+
+# Same encoder architecture as the best Phase 3 baseline (CNN), so the
+# comparison isolates the effect of the physics loss terms rather than
+# also changing the architecture.
+model:
+  type: pinn
+  encoder: cnn
+  channels: [32, 64]
+  kernel_size: 5
+  embedding_dim: 32
+  dropout: 0.1
+  lambda_mono: 1.0
+  # Measured at initialization: with lambda_health=1.0, the standardized
+  # health loss starts ~47x larger than the RUL MSE (several N-CMAPSS
+  # health params, e.g. fan_eff_mod, are exactly constant in DS02, so an
+  # untrained head's arbitrary output is a large standardized error on
+  # them). That imbalance lets the auxiliary task dominate early gradients
+  # and visibly hurt RUL accuracy (see PHASE4 notes). 0.02 (~1/47) roughly
+  # equalizes the two terms' contribution at the start of training -- a
+  # one-shot version of the loss-balancing that Phase 5's neuroevolution
+  # will search properly instead of hand-picking.
+  lambda_health: 0.02

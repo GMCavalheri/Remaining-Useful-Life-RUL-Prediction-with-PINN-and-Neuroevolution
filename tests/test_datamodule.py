@@ -48,8 +48,25 @@ def test_dataloaders_yield_batches(synthetic_ncmapss_path):
     dm = build_datamodule(_config(raw_dir))
     train_loader, val_loader, test_loader = dm.loaders(batch_size=8)
 
-    X, y, health = next(iter(train_loader))
+    X, y, health, unit, cycle = next(iter(train_loader))
     assert X.shape[1] == 10
     assert X.shape[2] == len(dm.feature_names)
     assert y.shape[0] == X.shape[0]
     assert health.shape[0] == X.shape[0]
+    assert unit.shape[0] == X.shape[0]
+    assert cycle.shape[0] == X.shape[0]
+
+
+def test_health_scaler_fit_only_on_train(synthetic_ncmapss_path):
+    raw_dir = synthetic_ncmapss_path.parent
+    dm = build_datamodule(_config(raw_dir))
+
+    train_health = dm.train.health.numpy()
+    manual_mean = train_health.mean(axis=0)
+    manual_std = train_health.std(axis=0)
+    np.testing.assert_allclose(dm.health_scaler.mean, manual_mean, rtol=1e-5)
+    np.testing.assert_allclose(dm.health_scaler.std, manual_std, rtol=1e-5)
+
+    # health arrays themselves stay RAW (unscaled) in the dataset -- the
+    # scaler is exposed for the physics loss to standardize on the fly.
+    assert not np.allclose(train_health.mean(axis=0), 0.0, atol=1e-2)

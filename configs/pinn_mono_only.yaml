@@ -1,0 +1,5 @@
+defaults: pinn_full.yaml
+
+# Ablation: monotonic-degradation loss only.
+model:
+  lambda_health: 0.0

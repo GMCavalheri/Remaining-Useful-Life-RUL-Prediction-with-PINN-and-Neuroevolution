@@ -1,4 +1,4 @@
-"""Plain-MSE training loop with early stopping, shared by every baseline.
+"""Training loop with early stopping, shared by every baseline and the PINN.
 
 The training objective for Phase 3's baselines is ordinary regression:
 
@@ -7,10 +7,12 @@ The training objective for Phase 3's baselines is ordinary regression:
     \\mathcal{L}_{\\text{MSE}} = \\frac{1}{B} \\sum_{i=1}^{B}
         \\left( \\widehat{\\text{RUL}}_i - \\text{RUL}_i \\right)^2
 
-Phase 4's PINN reuses this same loop with an extended loss (MSE plus the
-physics penalty terms), so the loop itself takes a ``loss_fn`` rather than
-hard-coding MSE, keeping the two milestones' code shared instead of
-duplicated.
+Phase 4's PINN reuses this exact loop with an extended loss (MSE plus the
+physics penalty terms from :mod:`rul.physics.losses`), so the loop itself
+takes a ``loss_fn`` rather than hard-coding MSE, keeping the two milestones'
+code shared instead of duplicated. A model may return either a single
+tensor (a baseline: RUL only) or a ``(rul_pred, health_pred)`` tuple (the
+PINN); both are handled transparently here.
 
 Early stopping watches validation RMSE (not the training loss) so that a
 model which starts overfitting — training loss still falling, but the model
@@ -40,8 +42,20 @@ class TrainResult:
     history: list[dict[str, float]] = field(default_factory=list)
 
 
+def _split_output(output):
+    """A model returns either ``rul_pred`` alone or ``(rul_pred, health_pred)``."""
+    if isinstance(output, tuple):
+        return output
+    return output, None
+
+
 def _default_loss(
-    y_pred: torch.Tensor, y_true: torch.Tensor, _health_pred, _health_true
+    y_pred: torch.Tensor,
+    y_true: torch.Tensor,
+    _health_pred,
+    _health_true,
+    _unit,
+    _cycle,
 ) -> torch.Tensor:
     return nn.functional.mse_loss(y_pred, y_true)
 
@@ -50,9 +64,9 @@ def _default_loss(
 def evaluate(model: nn.Module, loader: DataLoader, device: torch.device) -> dict[str, float]:
     model.eval()
     preds, targets = [], []
-    for X, y, _health in loader:
+    for X, y, _health, _unit, _cycle in loader:
         X = X.to(device)
-        y_pred = model(X)
+        y_pred, _health_pred = _split_output(model(X))
         preds.append(y_pred.cpu())
         targets.append(y)
     y_pred = torch.cat(preds).numpy()
@@ -86,11 +100,12 @@ def train_model(
     for epoch in range(epochs):
         model.train()
         train_losses = []
-        for X, y, health in train_loader:
+        for X, y, health, unit, cycle in train_loader:
             X, y, health = X.to(device), y.to(device), health.to(device)
+            unit, cycle = unit.to(device), cycle.to(device)
             optimizer.zero_grad()
-            y_pred = model(X)
-            loss = loss_fn(y_pred, y, None, health)
+            y_pred, health_pred = _split_output(model(X))
+            loss = loss_fn(y_pred, y, health_pred, health, unit, cycle)
             loss.backward()
             optimizer.step()
             train_losses.append(loss.item())

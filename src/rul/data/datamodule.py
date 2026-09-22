@@ -35,23 +35,27 @@ from rul.data.windowing import WindowedData, make_windows, split_units_train_val
 class RULWindowDataset(Dataset):
     """Wraps a :class:`WindowedData` as a torch ``Dataset``.
 
-    Each item is ``(X, y, health)`` where ``X`` is ``(window_length,
-    n_features)``, ``y`` is a scalar RUL, and ``health`` is the health
-    parameter vector at the window's last step (auxiliary target).
+    Each item is ``(X, y, health, unit, cycle)`` where ``X`` is
+    ``(window_length, n_features)``, ``y`` is a scalar RUL, ``health`` is the
+    health parameter vector at the window's last step (auxiliary target for
+    the PINN's health head), and ``unit``/``cycle`` identify the window (its
+    engine unit and last cycle number) — used by the monotonic-degradation
+    physics loss to compare windows of the *same* unit at different points
+    in its trajectory within a batch.
     """
 
     def __init__(self, data: WindowedData):
         self.X = torch.from_numpy(data.X)
         self.y = torch.from_numpy(data.y)
         self.health = torch.from_numpy(data.health)
-        self.unit = data.unit
-        self.cycle = data.cycle
+        self.unit = torch.from_numpy(data.unit.astype(np.float32))
+        self.cycle = torch.from_numpy(data.cycle.astype(np.float32))
 
     def __len__(self) -> int:
         return self.X.shape[0]
 
     def __getitem__(self, idx: int):
-        return self.X[idx], self.y[idx], self.health[idx]
+        return self.X[idx], self.y[idx], self.health[idx], self.unit[idx], self.cycle[idx]
 
 
 @dataclass
@@ -60,6 +64,7 @@ class RULDataModule:
     val: RULWindowDataset
     test: RULWindowDataset
     scaler: WindowScaler
+    health_scaler: WindowScaler
     feature_names: list[str]
 
     def loaders(
@@ -122,6 +127,15 @@ def build_datamodule(config: dict[str, Any]) -> RULDataModule:
         downsample_factor=downsample_factor,
     )
 
+    # Health targets (T, the auxiliary head's supervision target) are NOT
+    # written back into the dataset scaled -- the PINN's physics loss
+    # (Phase 4) standardizes them on the fly with health_scaler.std, since
+    # different health parameters have wildly different natural scales
+    # (e.g. HPT_eff_mod ~1e-2 vs. several columns that are ~0 for this
+    # subset) and an unscaled MSE would let the largest-scale column
+    # dominate the loss regardless of lambda_health.
+    health_scaler = WindowScaler.fit(train_windows.health)
+
     scaler = WindowScaler.fit(train_windows.X)
     train_windows = WindowedData(
         X=scaler.transform(train_windows.X),
@@ -153,5 +167,6 @@ def build_datamodule(config: dict[str, Any]) -> RULDataModule:
         val=RULWindowDataset(val_windows),
         test=RULWindowDataset(test_windows),
         scaler=scaler,
+        health_scaler=health_scaler,
         feature_names=train_windows.feature_names,
     )
