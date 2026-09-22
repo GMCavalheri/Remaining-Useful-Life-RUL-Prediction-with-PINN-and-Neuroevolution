@@ -1,0 +1,8 @@
+defaults: base.yaml
+
+model:
+  type: cnn
+  channels: [32, 64]
+  kernel_size: 5
+  embedding_dim: 32
+  dropout: 0.1
